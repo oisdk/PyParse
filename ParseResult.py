@@ -46,17 +46,21 @@ class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
 
 class Success(ParseResult, Generic[A]):
 
-    def __init__(self, value: A, loc: Loc) -> None:
-        self._loc, self._val = loc, value
+    def __init__(self, value: A, loc: Loc, dep=0) -> None:
+        self._loc, self._val, self._dep = loc, value, dep
 
     def fmap(self, fn: Callable[[A], B]) -> 'Success[B]':
-        return Success(fn(self._val), self._loc)
+        return Success(fn(self._val), self._loc, self._dep)
 
     def apply(self, something: ParseResult) -> ParseResult:
-        return something.fmap(cast(Callable[[Any], Any], self._val))
+        res = something.fmap(cast(Callable[[Any], Any], self._val))
+        res._dep += self._dep
+        return res
 
     def bind(self, something: Callable[[A], ParseResult]) -> ParseResult:
-        return something(self._val)
+        res = something(self._val)
+        res._dep += self._dep
+        return res
 
     @staticmethod
     def pure(val):
@@ -68,13 +72,16 @@ class Success(ParseResult, Generic[A]):
     def __bool__(self) -> bool:
         return True
 
+    def __or__(lhs, _):
+        return lhs
+
     def __repr__(self) -> str:
         return "Success! Finished at %s, with %s" % (self._locstr(), self._val)
 
 class Failure(ParseResult):
 
-    def __init__(self, loc: Loc, exp: str, rec: str) -> None:
-        self._loc, self._exp, self._rec = loc, exp, rec
+    def __init__(self, loc: Loc, exp: str, rec: str, dep=0) -> None:
+        self._loc, self._exp, self._rec, self._dep = loc, exp, rec, dep
 
     def fmap(self, fn: Callable[[Any], Any]) -> 'Failure':
         return self
@@ -88,12 +95,23 @@ class Failure(ParseResult):
     def __bool__(self) -> bool:
         return False
 
+    def __or__(lhs,rhs):
+        if rhs or rhs._dep > lhs._dep:
+            return rhs
+        return lhs
+        # elif lhs._loc > rhs._loc:
+        #     return lhs
+        # elif lhs._loc < rhs._loc:
+        #     return rhs
+
+
     @staticmethod
     def pure(val):
         return Success(val, (0,0))
 
     def finish(self) -> str:
-        return "%s:\nUnexpected %s\nExpecting %s" % (self._locstr(), self._rec, self._exp)
+        expect = ("\nExpecting %s" % self._exp) if self._exp else ""
+        return "%s:\nUnexpected %s%s" % (self._locstr(), self._rec, expect)
 
     def __repr__(self) -> str:
         return self.finish()

@@ -38,5 +38,5 @@ class Monad(metaclass=ABCMeta):
     def pure(val: Any) -> 'Monad':
         return NotImplemented
 
-    def __or__(self, func: Callable[[Any], Any]) -> 'Monad':
-        return self.bind(func)
+    def rshift(self, something: 'Monad') -> 'Monad':
+        return self.bind(lambda _: something)
