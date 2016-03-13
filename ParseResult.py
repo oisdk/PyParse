@@ -42,7 +42,7 @@ class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
         return NotImplemented
 
     def _locstr(self) -> str:
-        return "line %i, column %i" % self._loc
+        return "line %i, column %i" % (self._loc[0] + 1, self._loc[1] + 1)
 
 class Success(ParseResult, Generic[A]):
 

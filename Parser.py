@@ -7,18 +7,21 @@ Runner = Callable[[List[bytes], Loc], ParseResult]
 
 class Parser(Functor, Applicative, Monad):
 
+    """This is a semi-traditional monadic parser. It has two fields: a
+    description, and a parsing function."""
+
     def __init__(self, run: Runner, dsc: str) -> None:
         self._dsc, self._run = dsc, run
 
     def fmap(self, mapper: Callable[[Any], Any]) -> 'Parser':
         def run(text: List[bytes], loc: Loc):
-            return self._run(text, loc).fmap(mapper)
+            return self._run(text, loc) % mapper
         return Parser(run, self._dsc)
 
     def apply(self, something: 'Parser') -> 'Parser':
         def run(text: List[bytes], loc: Loc):
             result = self._run(text, loc)
-            return result and result.apply(something._run(text, result._loc))
+            return result and result * something._run(text, result._loc)
         return Parser(run, self._dsc)
 
     def bind(self, func: Callable[[Any], 'Parser']) -> 'Parser':
@@ -39,30 +42,33 @@ class Parser(Functor, Applicative, Monad):
         return self._dsc
 
     def __call__(self, string: str) -> Union[Any, str]:
-        return self._run(string.encode().splitlines(), (0,0)).finish()
-
-
-def pastEnd(text: List[bytes], loc: Loc) -> bool:
-    return loc[0] >= len(text) or loc[0] + 1 == len(text) and loc[1] >= len(text[loc[0]])
+        return self._run(string.encode().splitlines() + [None], (0,0)).finish()
 
 def quote(string: str) -> str:
     return '"%s"' % string
 
-def advance(by: int, linelen: int, loc: Loc) -> Loc:
-    newcol = loc[1] + by
-    return (loc[0] + newcol // linelen, newcol % linelen)
+def advance(loc: Loc, by: int, over: List[bytes]) -> Optional[Loc]:
+    lin, col = loc[0], loc[1] + by
+    cur = len(over[lin])
+    while col >= cur:
+        lin += 1
+        col -= cur
+        if over[lin] == None: return (lin, 0)
+    return (lin, col)
 
 def err(text: List[bytes], loc: Loc, dsc: str, length=None) -> Failure:
-    return Failure(loc, dsc, 'eof' if pastEnd(text,loc) else quote(text[loc[0]][loc[1]:][:length].decode()))
+    if text[loc[0]] == None:
+        msg = 'eof'
+    else:
+        msg = quote(text[loc[0]][loc[1]:][:min(length, len(text[loc[0]]) - loc[1])].decode())
+    return Failure(loc, dsc, msg)
 
 def matchString(string):
     b = str.encode(string)
     def run(text, loc):
         line, col = loc
-        try:
-            if text[line].startswith(b, col):
-                return Success(string, advance(len(b), len(text[line]), loc))
-        except IndexError: pass
+        if text[line] and text[line].startswith(b, col):
+            return Success(string, advance(loc, len(b), text))
         return err(text, loc, quote(string), len(b))
     return Parser(run, string)
 
@@ -71,24 +77,23 @@ def oneOf(chars):
     desc = "one of %s" % ", ".join(map(quote, chars))
     def run(text, loc):
         line, col = loc
-        try:
+        if text[line]:
             c = text[line][col]
             if c in bset:
-                return Success(chr(c), advance(1, len(text[line]), loc))
-        except IndexError: pass
+                return Success(chr(c), advance(loc, 1, text))
         return err(text, loc, desc, 1)
     return Parser(run, desc)
 
 def anyChar():
     def run(text, loc):
-        if pastEnd(text, loc): return err(text, loc, 'any character')
-        return Success(chr(text[loc[0]][loc[1]]), advance(1, len(text[loc[0]]), loc))
+        if text[loc[0]] == None: return err(text, loc, 'any character')
+        return Success(chr(text[loc[0]][loc[1]]), advance(loc, 1, text))
     return withFunc(run, 'any character')
 
 def many(p):
     def run(text, loc):
         results = []
-        while not pastEnd(text,loc):
+        while text[loc[0]]:
             result = p._run(text, loc)
             if not result: break
             results.append(result._val)
@@ -107,7 +112,7 @@ def choice(f, *p):
     return Parser(run, desc)
 
 def _eof(t,l):
-    return Success(None, l) if pastEnd(t,l) else err(t,l,'eof')
+    return Success(None, l) if t[l[0]] == None else err(t,l,'eof')
 
 
 eof = Parser(_eof, 'eof')

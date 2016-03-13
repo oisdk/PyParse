@@ -22,5 +22,4 @@ def between(p,l,r):
 lbrack = matchString('(')
 rbrack = matchString(')')
 parens = between(many(alphanum), lbrack, rbrack)
-print(parens()('(abc'))
 print(parens()('(abc)'))
