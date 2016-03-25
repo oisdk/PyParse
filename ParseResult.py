@@ -1,5 +1,5 @@
 from FunctorApplicativeMonad import Functor, Applicative, Monad
-from typing import Callable, Any, TypeVar, Tuple, Generic, cast, Union
+from typing import Callable, Any, TypeVar, Tuple, Generic, cast, Union, Set
 from abc import ABCMeta, abstractmethod
 
 Loc = Tuple[int, int]
@@ -78,7 +78,7 @@ class Success(ParseResult, Generic[A]):
 
 class Failure(ParseResult):
 
-    def __init__(self, loc: Loc, exp: str, rec: str, com=False) -> None:
+    def __init__(self, loc: Loc, exp: Set[str], rec: str, com=False) -> None:
         self._loc, self._exp, self._rec, self._com = loc, exp, rec, com
 
     def fmap(self, fn: Callable[[Any], Any]) -> 'Failure':
@@ -96,14 +96,21 @@ class Failure(ParseResult):
     def __or__(lhs,rhs):
         if lhs._com: return lhs
         if rhs or rhs._com: return rhs
-        return Failure(lhs._loc, "%s or %s" % (lhs._exp, rhs._exp), lhs._rec, False)
+        return Failure(lhs._loc, lhs._exp | rhs._exp, lhs._rec, False)
 
     @staticmethod
     def pure(val):
         return Success(val, (0,0))
 
     def finish(self) -> str:
-        expect = ("\nExpecting %s" % self._exp) if self._exp else ""
+        expect = '\nExpecting '
+        if len(self._exp) == 2: expect += ' or '.join(self._exp)
+        elif self._exp:
+            e = list(self._exp)
+            f = ', '.join(e[:-1])
+            if f: expect += f + ', or '
+            expect += e[-1]
+        else: expect = ''
         return "%s:\nUnexpected %s%s" % (self._locstr(), self._rec, expect)
 
     def __repr__(self) -> str:

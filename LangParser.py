@@ -14,7 +14,7 @@ lowercase = oneof(lowers)
 uppercase = oneof(uppers)
 letter = oneof(alphas)
 alphanum = oneof(alpnms)
-digit = oneof(numbrs)
+digit = oneof(numbrs) ^ 'a digit'
 
 numdict = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9}
 
@@ -33,7 +33,7 @@ def reserved(word): return token(lambda: match(word))
 def parens(p):
     yield reserved("(")()
     x = yield p()
-    yield reserved(")")()
+    yield commit(reserved(")")())
     yield Parser.pure(x)
 
 posinteger = digits.fmap(lambda d: reduce(lambda a,e: e + 10 * a, d, 0))
@@ -71,20 +71,9 @@ def infixop(x, f): return lambda: reserved(x)() >> Parser.pure(f)
 def addop(): return infixop('+', add)() | infixop('-', sub)()
 def mulop(): return infixop('*', mul)()
 
-for line in iter(input, 'q'):
-    print(expr()(line))
-
-# from itertools import zip_longest
-# from random import choice, randrange
-# for i in range(1000):
-#     if not i % 100: print(i)
-#     nums = [str(randrange(-1000, 1000)) for _ in range(10)]
-#     ops = [choice(['*','+','-']) for _ in range(9)]
-#     lin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(nums, ops))
-#     py = eval(lin)
-#     mine = expr()(lin)
-#     if py != mine:
-#         print(lin)
-#         print(py)
-#         print(mine)
-#         break
+@do(Parser)
+def string():
+    yield match('"')
+    cs = yield many( match('\\\"').fmap(lambda w: w[1:]) | satisfies(lambda c: c != '"'))
+    yield match('"')
+    yield Parser.pure(''.join(cs))
