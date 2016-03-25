@@ -61,7 +61,7 @@ def rest(a,p,op): return lambda: recur(a,p,op)() | Parser.pure(a)
 @do(Parser)
 def recur(a, p, op):
     f = yield op()
-    b = yield p()
+    b = yield commit(p())
     yield rest(f(a,b), p, op)()
 
 def factor(): return token(lambda: integer)() | parens(expr)()

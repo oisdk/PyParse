@@ -46,20 +46,18 @@ class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
 
 class Success(ParseResult, Generic[A]):
 
-    def __init__(self, value: A, loc: Loc, dep=0) -> None:
-        self._loc, self._val, self._dep = loc, value, dep
+    def __init__(self, value: A, loc: Loc) -> None:
+        self._loc, self._val = loc, value
 
     def fmap(self, fn: Callable[[A], B]) -> 'Success[B]':
-        return Success(fn(self._val), self._loc, self._dep)
+        return Success(fn(self._val), self._loc)
 
     def apply(self, something: ParseResult) -> ParseResult:
         res = something.fmap(cast(Callable[[Any], Any], self._val))
-        res._dep += self._dep
         return res
 
     def bind(self, something: Callable[[A], ParseResult]) -> ParseResult:
         res = something(self._val)
-        res._dep += self._dep
         return res
 
     @staticmethod
@@ -80,8 +78,8 @@ class Success(ParseResult, Generic[A]):
 
 class Failure(ParseResult):
 
-    def __init__(self, loc: Loc, exp: str, rec: str, dep=0) -> None:
-        self._loc, self._exp, self._rec, self._dep = loc, exp, rec, dep
+    def __init__(self, loc: Loc, exp: str, rec: str, com=False) -> None:
+        self._loc, self._exp, self._rec, self._com = loc, exp, rec, com
 
     def fmap(self, fn: Callable[[Any], Any]) -> 'Failure':
         return self
@@ -96,14 +94,9 @@ class Failure(ParseResult):
         return False
 
     def __or__(lhs,rhs):
-        if rhs or rhs._dep > lhs._dep:
-            return rhs
-        return lhs
-        # elif lhs._loc > rhs._loc:
-        #     return lhs
-        # elif lhs._loc < rhs._loc:
-        #     return rhs
-
+        if lhs._com: return lhs
+        if rhs or rhs._com: return rhs
+        return Failure(lhs._loc, "%s or %s" % (lhs._exp, rhs._exp), lhs._rec, False)
 
     @staticmethod
     def pure(val):

@@ -51,6 +51,14 @@ class Parser(Functor, Applicative, Monad):
 def quote(string: str) -> str:
     return '"%s"' % string
 
+def commit(p: Parser) -> Parser:
+    def run(b,l):
+        result = p._run(b,l)
+        if not result: result._com = True
+        return result
+    return Parser(run, p._dsc)
+
+
 def advance(loc: Loc, by: int, over: List[bytes]) -> Optional[Loc]:
     lin, col = loc[0], loc[1] + by
     cur = len(over[lin])
@@ -60,13 +68,13 @@ def advance(loc: Loc, by: int, over: List[bytes]) -> Optional[Loc]:
         if over[lin] == None: return (lin, 0)
     return (lin, col)
 
-def err(text: List[bytes], loc: Loc, dsc: str, length=None) -> Failure:
+def err(text: List[bytes], loc: Loc, dsc: str, length=None, dep=0) -> Failure:
     if text[loc[0]] == None:
         msg = 'eof'
     else:
         end = length and min(length, len(text[loc[0]]) - loc[1])
         msg = quote(text[loc[0]][loc[1]:][:end].decode())
-    return Failure(loc, dsc, msg)
+    return Failure(loc, dsc, msg, dep)
 
 def match(string):
     b = str.encode(string)
