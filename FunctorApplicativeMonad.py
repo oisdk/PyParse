@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from typing import Callable, Any, Generic, TypeVar
-
-C = TypeVar('C')
+from Utils import *
 
 class Functor(metaclass=ABCMeta):
 
@@ -21,12 +20,6 @@ class Applicative(metaclass=ABCMeta):
     def __mul__(self, something) -> 'Applicative':
         return self.apply(something)
 
-    def lift_a2(self, func, b):
-        return func % self * b
-
-    def __rshift__(self, something) -> 'Applicative':
-        return (lambda _: lambda x: x) % self * something
-
 class Monad(metaclass=ABCMeta):
 
     @abstractmethod
@@ -38,5 +31,8 @@ class Monad(metaclass=ABCMeta):
     def pure(val: Any) -> 'Monad':
         return NotImplemented
 
-    def rshift(self, something: 'Monad') -> 'Monad':
-        return self.bind(lambda _: something)
+    def __rshift__(self, something: 'Monad') -> 'Monad':
+        return self.bind(const(something))
+
+    def __lshift__(self, something: 'Monad') -> 'Monad':
+        return self.bind(lambda x: something.fmap(const(x)))

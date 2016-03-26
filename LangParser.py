@@ -1,24 +1,13 @@
 from Parser import *
+from Utils import *
 from Do import do
 import string
 from functools import reduce, partial
 from operator import neg, add, sub, mul
 
-lowers = string.ascii_lowercase
-uppers = string.ascii_uppercase
-numbrs = string.digits
-alphas = string.ascii_letters
-alpnms = alphas + numbrs
-
-lowercase = oneof(lowers)
-uppercase = oneof(uppers)
-letter = oneof(alphas)
-alphanum = oneof(alpnms)
-digit = oneof(numbrs) ^ 'a digit'
-
+digit = oneof(string.digits) ^ 'a digit'
 numdict = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9}
-
-digits = some(digit.fmap(numdict.get))
+digits = some(numdict.get % digit)
 spaces = many(oneof(" \n\r"))
 
 @do(Parser)
@@ -38,7 +27,7 @@ def parens(p):
 
 posinteger = digits.fmap(lambda d: reduce(lambda a,e: e + 10 * a, d, 0))
 
-def negate(p): return match('-') >> p.fmap(neg) | p
+def negate(p): return match('-') >> neg % p | p
 
 integer = negate(posinteger)
 
@@ -49,7 +38,7 @@ def absfloating():
     mant = reduce(lambda a,e: (e+a)/10, reversed(after), 0)
     yield Parser.pure(befor + mant)
 
-floating = lambda: negate(absfloating()())
+floating = lambda: negate(absfloating())
 
 @do(Parser)
 def chainl1(p, op):
@@ -64,16 +53,27 @@ def recur(a, p, op):
     b = yield commit(p())
     yield rest(f(a,b), p, op)()
 
-def factor(): return token(lambda: integer)() | parens(expr)()
-def term(): return chainl1(factor, mulop)()
-def expr(): return chainl1(term, addop)()
-def infixop(x, f): return lambda: reserved(x)() >> Parser.pure(f)
-def addop(): return infixop('+', add)() | infixop('-', sub)()
-def mulop(): return infixop('*', mul)()
+boollit = const(True) % match('True') | const(False) % match('False')
+
+def infixop(x,f): return lambda: reserved(x)() >> Parser.pure(f)
+factor = lambda: token(lambda: integer)() | parens(expr)()
+term   = lambda: chainl1(factor, mulop)()
+expr   = lambda: chainl1(term, addop)()
+bfact  = lambda: token(lambda: boollit)() | parens(bexpr)()
+bterm  = lambda: chainl1(bfact, andop)()
+bexpr  = lambda: chainl1(bterm, orop)()
+addop  = lambda: infixop('+', add)() | infixop('-', sub)()
+mulop  = lambda: infixop('*', mul)()
+andop  = lambda: infixop('&&', lambda a, b: a and b)()
+orop   = lambda: infixop('||', lambda a, b: a or b)()
+
+escdict = {'n':'\n', 'r': '\r', 't': '\t', '"': '"', '\\':'\\'}
+escchar = oneof(''.join(escdict))
+escpat = match('\\') >> escdict.get % commit(escchar)
 
 @do(Parser)
 def string():
     yield match('"')
-    cs = yield many( match('\\\"').fmap(lambda w: w[1:]) | satisfies(lambda c: c != '"'))
-    yield match('"')
+    cs = yield many(escpat | satisfies(lambda c: c != '"'))
+    yield reserved('"')()
     yield Parser.pure(''.join(cs))
