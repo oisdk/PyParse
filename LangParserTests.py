@@ -38,7 +38,5 @@ class ParseTests(unittest.TestCase):
             plin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(vals, map(c.get, ops)))
             self.assertEqual(eval(plin), bexpr()(lin), lin)
 
-
-
 if __name__ == '__main__':
     unittest.main()

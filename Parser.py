@@ -21,13 +21,13 @@ class Parser(Functor, Applicative, Monad):
     def apply(self, something: 'Parser') -> 'Parser':
         def run(text: List[bytes], loc: Loc):
             result = self._run(text, loc)
-            return result and result * something._run(text, result._loc)
+            return result and something._run(text, result._loc).fmap(result._val)
         return Parser(run)
 
     def bind(self, func: Callable[[Any], 'Parser']) -> 'Parser':
         def run(text: List[bytes], loc: Loc):
             result = self._run(text, loc)
-            return result.bind(lambda x: func(x)._run(text,result._loc))
+            return result and func(result._val)._run(text, result._loc)
         return Parser(run)
 
     @staticmethod
@@ -40,8 +40,7 @@ class Parser(Functor, Applicative, Monad):
     def __or__(lhs, rhs):
         def run(t, l):
             res = lhs._run(t,l)
-            if res: return res
-            return res | rhs._run(t,l)
+            return res or res | rhs._run(t,l)
         return Parser(run)
 
     def __xor__(self, dsc):
@@ -49,8 +48,7 @@ class Parser(Functor, Applicative, Monad):
         description"""
         def run(text, loc):
             result = self._run(text, loc)
-            if result: return result
-            result._exp = {dsc}
+            if not result: result._exp = {dsc}
             return result
         return Parser(run)
 
@@ -98,28 +96,20 @@ def match(string):
     b = str.encode(string)
     def run(text, loc):
         line, col = loc
-        if text[line] and text[line].startswith(b, col):
+        if text[line] != None and text[line].startswith(b, col):
             return Success(string, advance(loc, len(b), text))
         return err(text, loc, {quote(string)}, len(b))
     return Parser(run)
 
-
-
 def many(p):
-
-    # Too slow:
-    # return p.bind(lambda h: many(p).fmap(lambda t: [h] + t)) | Parser.pure([])
-
     def run(text, loc):
         results = []
-        while text[loc[0]]:
-            result = p._run(text, loc)
-            if not result:
-                if result._com: return result
-                break
-            results.append(result._val)
-            loc = result._loc
-        return Success(results,loc)
+        next = p._run(text,loc)
+        while next:
+            results.append(next._val)
+            loc = next._loc
+            next = p._run(text,loc)
+        return next | Success(results,loc)
     return Parser(run)
 
 def some(p):
@@ -160,6 +150,6 @@ def chainl1(p,op):
         while x:
             o = op()._run(t,x._loc)
             if not o: break
-            x = p()._run(t,o._loc).fmap(lambda b: o.finish()(x.finish(), b))
+            x = p()._run(t,o._loc).fmap(lambda y: o._val(x._val,y))
         return x
     return Parser(run)

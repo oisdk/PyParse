@@ -22,7 +22,9 @@ def do(monad):
                 genr = func(*args, **kwargs)
                 def send(x):
                     try: return genr.send(x).bind(send)
-                    except StopIteration: return monad.pure(x)
+                    except StopIteration as e:
+                        if e.value != None: x = e.value
+                        return monad.pure(x)
                 return send(None)
             return lazy if args or kwargs else lazy()
         return do_func

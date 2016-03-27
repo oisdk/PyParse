@@ -19,7 +19,7 @@ def between(o,c,p):
     yield o
     x = yield p()
     yield c
-    yield Parser.pure(x)
+    return x
 
 def parens(p): return between(reserved('('), commit(reserved(')')), lambda: commit(p()))
 
@@ -34,7 +34,7 @@ def absfloating():
     befor = yield posinteger
     after = yield (match('.') >> digits) | Parser.pure([])
     mant = reduce(lambda a,e: (e+a)/10, reversed(after()), 0)
-    yield Parser.pure(befor + mant)
+    return befor + mant
 
 floating = lambda: negate(absfloating())
 
