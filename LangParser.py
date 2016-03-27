@@ -10,20 +10,18 @@ numdict = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9}
 digits = some(numdict.get % digit)
 spaces = many(oneof(" \n\r"))
 
-@do(Parser)
-def token(p):
-    a = yield p()
-    yield spaces
-    yield Parser.pure(a)
+def token(p): return p << spaces
 
-def reserved(word): return token(lambda: match(word))
+def reserved(word): return token(match(word))
 
 @do(Parser)
-def parens(p):
-    yield reserved("(")()
+def between(o,c,p):
+    yield o
     x = yield p()
-    yield commit(reserved(")")())
+    yield c
     yield Parser.pure(x)
+
+def parens(p): return between(reserved('('), commit(reserved(')')), lambda: commit(p()))
 
 posinteger = digits.fmap(lambda d: reduce(lambda a,e: e + 10 * a, d, 0))
 
@@ -35,45 +33,34 @@ integer = negate(posinteger)
 def absfloating():
     befor = yield posinteger
     after = yield (match('.') >> digits) | Parser.pure([])
-    mant = reduce(lambda a,e: (e+a)/10, reversed(after), 0)
+    mant = reduce(lambda a,e: (e+a)/10, reversed(after()), 0)
     yield Parser.pure(befor + mant)
 
 floating = lambda: negate(absfloating())
 
-@do(Parser)
-def chainl1(p, op):
-    a = yield p()
-    yield rest(a,p,op)()
+boollit = const(True) % reserved('True') | const(False) % reserved('False')
 
-def rest(a,p,op): return lambda: recur(a,p,op)() | Parser.pure(a)
-
-@do(Parser)
-def recur(a, p, op):
-    f = yield op()
-    b = yield commit(p())
-    yield rest(f(a,b), p, op)()
-
-boollit = const(True) % match('True') | const(False) % match('False')
-
-def infixop(x,f): return lambda: reserved(x)() >> Parser.pure(f)
-factor = lambda: token(lambda: integer)() | parens(expr)()
-term   = lambda: chainl1(factor, mulop)()
-expr   = lambda: chainl1(term, addop)()
-bfact  = lambda: token(lambda: boollit)() | parens(bexpr)()
-bterm  = lambda: chainl1(bfact, andop)()
-bexpr  = lambda: chainl1(bterm, orop)()
-addop  = lambda: infixop('+', add)() | infixop('-', sub)()
-mulop  = lambda: infixop('*', mul)()
-andop  = lambda: infixop('&&', lambda a, b: a and b)()
-orop   = lambda: infixop('||', lambda a, b: a or b)()
+def infixop(x,f): return reserved(x) >> Parser.pure(f)
+factor = lambda: token(integer) | parens(expr)()
+term   = lambda: chainl1(factor, mulop)
+expr   = lambda: chainl1(term, addop)
+bfact  = lambda: token(boollit) | parens(bexpr)()
+bterm  = lambda: chainl1(bfact, andop)
+bexpr  = lambda: chainl1(bterm, orop)
+addop  = lambda: infixop('+', add) | infixop('-', sub)
+mulop  = lambda: infixop('*', mul)
+andop  = lambda: infixop('&&', lambda a, b: a and b)
+orop   = lambda: infixop('||', lambda a, b: a or b)
 
 escdict = {'n':'\n', 'r': '\r', 't': '\t', '"': '"', '\\':'\\'}
 escchar = oneof(''.join(escdict))
 escpat = match('\\') >> escdict.get % commit(escchar)
 
-@do(Parser)
-def string():
-    yield match('"')
-    cs = yield many(escpat | satisfies(lambda c: c != '"'))
-    yield reserved('"')()
-    yield Parser.pure(''.join(cs))
+string = between(match('"'), reserved('"'),
+                 lambda: many(escpat | noneof('"')).fmap(''.join))
+
+def interact(p):
+    for line in iter(input, 'q'):
+        res = p()._run([line.encode(), None], (0,0))
+        if not res: print(''.join('^' if i == res._loc[1] else ' ' for i in range(len(line))))
+        print(res.finish())

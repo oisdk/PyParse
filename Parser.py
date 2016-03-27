@@ -103,16 +103,7 @@ def match(string):
         return err(text, loc, {quote(string)}, len(b))
     return Parser(run)
 
-def oneof(chars):
-    bset = set(str.encode(chars))
-    def run(text, loc):
-        line, col = loc
-        if text[line]:
-            c = text[line][col]
-            if c in bset:
-                return Success(chr(c), advance(loc, 1, text))
-        return err(text, loc, {quote(c) for c in chars}, 1)
-    return Parser(run)
+
 
 def many(p):
 
@@ -140,15 +131,35 @@ def choice(f, *p):
 def _eof(t,l):
     return Success(None, l) if t[l[0]] == None else err(t,l,{'eof'})
 
-def satisfies(pred, dsc=None) -> Parser:
-    def run(text, loc):
-        line, col = loc
-        if text[line]:
-            c = chr(text[line][col])
-            if pred(c): return Success(c, advance(loc, 1, text))
-        return err(text, loc, {dsc} if dsc else set(), 1)
+def bsatisfies(pred, dsc=set()):
+    def run(t,l):
+        n,i = l
+        if t[n]:
+            c = t[n][i]
+            if pred(c): return Success(chr(c), advance(l,1,t))
+        return err(t,l,dsc,1)
     return Parser(run)
 
-anychar = satisfies(const(True), 'any character')
+def satisfies(pred, dsc=set()):
+    return bsatisfies(lambda b: pred(chr(b)), dsc)
+
+def oneof(chars):
+    return bsatisfies(set(str.encode(chars)).__contains__, {quote(c) for c in chars})
+
+def noneof(chars):
+    bsetf = set(str.encode(chars)).__contains__
+    return bsatisfies(lambda c: not bsetf(c), {quote(c) for c in chars})
+
+anychar = satisfies(const(True), {'any character'})
 
 eof = Parser(_eof)
+
+def chainl1(p,op):
+    def run(t,l):
+        x = p()._run(t,l)
+        while x:
+            o = op()._run(t,x._loc)
+            if not o: break
+            x = p()._run(t,o._loc).fmap(lambda b: o.finish()(x.finish(), b))
+        return x
+    return Parser(run)
