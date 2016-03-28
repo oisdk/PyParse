@@ -53,12 +53,10 @@ class Success(ParseResult, Generic[A]):
         return Success(fn(self._val), self._loc)
 
     def apply(self, something: ParseResult) -> ParseResult:
-        res = something.fmap(cast(Callable[[Any], Any], self._val))
-        return res
+        return something.fmap(cast(Callable[[Any], Any], self._val))
 
     def bind(self, something: Callable[[A], ParseResult]) -> ParseResult:
-        res = something(self._val)
-        return res
+        return something(self._val)
 
     @staticmethod
     def pure(val):
@@ -115,4 +113,3 @@ class Failure(ParseResult):
 
     def __repr__(self) -> str:
         return self.finish()
-

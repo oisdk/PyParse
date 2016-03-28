@@ -118,9 +118,6 @@ def some(p):
 def choice(f, *p):
     return reduce(Parser.__or__, (f,) + p)
 
-def _eof(t,l):
-    return Success(None, l) if t[l[0]] == None else err(t,l,{'eof'})
-
 def bsatisfies(pred, dsc=set()):
     def run(t,l):
         n,i = l
@@ -131,7 +128,7 @@ def bsatisfies(pred, dsc=set()):
     return Parser(run)
 
 def satisfies(pred, dsc=set()):
-    return bsatisfies(lambda b: pred(chr(b)), dsc)
+    return bsatisfies(compose(pred, chr), dsc)
 
 def oneof(chars):
     return bsatisfies(set(str.encode(chars)).__contains__, {quote(c) for c in chars})
@@ -142,7 +139,7 @@ def noneof(chars):
 
 anychar = satisfies(const(True), {'any character'})
 
-eof = Parser(_eof)
+eof = Parser(lambda t,l: Success(None, l) if t[l[0]] == None else err(t,l,{'eof'}))
 
 def chainl1(p,op):
     def run(t,l):
