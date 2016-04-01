@@ -1,4 +1,5 @@
 from functools import wraps
+from Utils import *
 
 def do(monad):
     """An implementation of Haskell's do-notation, using generators.
@@ -20,8 +21,9 @@ def do(monad):
         def do_func(*args, **kwargs):
             def lazy():
                 genr = func(*args, **kwargs)
+                @tco
                 def send(x):
-                    try: return genr.send(x).bind(send)
+                    try: return (genr.send(x).bind, send)
                     except StopIteration as e:
                         if e.value != None: x = e.value
                         return monad.pure(x)

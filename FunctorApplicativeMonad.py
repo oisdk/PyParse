@@ -20,6 +20,14 @@ class Applicative(metaclass=ABCMeta):
     def __mul__(self, something) -> 'Applicative':
         return self.apply(something)
 
+    def __rshift__(self, something: 'Applicative') -> 'Applicative':
+        return self.fmap(lambda _: lambda x: x).apply(something)
+        # return self.bind(const(something))
+
+    def __lshift__(self, something: 'Applicative') -> 'Applicative':
+        return self.fmap(lambda x: lambda _: x).apply(something)
+        # return self.bind(lambda x: something.fmap(const(x)))
+
 class Monad(metaclass=ABCMeta):
 
     @abstractmethod
@@ -31,8 +39,8 @@ class Monad(metaclass=ABCMeta):
     def pure(val: Any) -> 'Monad':
         return NotImplemented
 
-    def __rshift__(self, something: 'Monad') -> 'Monad':
-        return self.bind(const(something))
+    # def __rshift__(self, something: 'Monad') -> 'Monad':
+    #     return self.bind(const(something))
 
-    def __lshift__(self, something: 'Monad') -> 'Monad':
-        return self.bind(lambda x: something.fmap(const(x)))
+    # def __lshift__(self, something: 'Monad') -> 'Monad':
+    #     return self.bind(lambda x: something.fmap(const(x)))

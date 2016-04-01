@@ -3,11 +3,13 @@ from Utils import *
 from Do import do
 import string
 from functools import reduce, partial
-from operator import neg, add, sub, mul
+from operator import neg, mul
+from AST import AST
 
 # Language whitespace
 spaces = many(oneof(" \n\r"))
 def token(p): return p << spaces
+
 def reserved(word): return token(match(word))
 
 # Boolean literal parser
@@ -20,11 +22,12 @@ digits = some(numdict.get % digit)
 posinteger = digits.fmap(lambda d: reduce(lambda a,e: e + 10 * a, d, 0))
 def negate(p): return match('-') >> neg % p | p
 integer = negate(posinteger)
+
 @do(Parser)
 def absfloating():
     befor = yield posinteger
     after = yield (match('.') >> commit(digits)) | Parser.pure([])
-    mant = reduce(lambda a,e: (e+a)/10, reversed(after), 0)
+    mant = reduce(lambda a,e: (e+a)/10, reversed(after)(), 0)
     return befor + mant
 floating = lambda: negate(absfloating())
 
@@ -32,33 +35,39 @@ floating = lambda: negate(absfloating())
 @do(Parser)
 def between(o,c,p):
     yield o
-    x = yield p()
-    yield c
+    x = yield commit(p())
+    yield commit(c())
     return x
-def parens(p): return between(reserved('('), commit(reserved(')')), lambda: commit(p()))
+
+def parens(p): return between(reserved('('), lambda: reserved(')'), p )
 
 # Infix operator parser
 def infixop(x,f): return reserved(x) >> Parser.pure(f)
 
 # Integer expression parser
-factor = lambda: token(integer) | parens(expr)()
+factor = lambda: token(integer.fmap(AST)) | parens(expr)()
 term   = lambda: chainl1(factor, mulop)
 expr   = lambda: chainl1(term, addop)
-addop  = lambda: infixop('+', add) | infixop('-', sub)
-mulop  = lambda: infixop('*', mul)
+def add(a,b): return AST(a._res + b._res, '+', [a,b])
+def sub(a,b): return AST(a._res - b._res, '-', [a,b])
+def mul(a,b): return AST(a._res * b._res, '*', [a,b])
+addop  = infixop('+', add) | infixop('-', sub)
+mulop  = infixop('*', mul)
 
 # Boolean expression parser
-bfact  = lambda: token(boollit) | parens(bexpr)()
+bfact  = lambda: token(boollit).fmap(AST) | parens(bexpr)()
 bterm  = lambda: chainl1(bfact, andop)
 bexpr  = lambda: chainl1(bterm, orop)
-andop  = lambda: infixop('&&', lambda a, b: a and b)
-orop   = lambda: infixop('||', lambda a, b: a or b)
+def andA(a,b): return AST(a._res and b._res, '.', [a,b])
+def orA(a,b): return AST(a._res or b._res, '+', [a,b])
+andop  = infixop('&&', lambda a, b: a and b)
+orop   = infixop('||', lambda a, b: a or b)
 
 # Escaping parser for string literals
 escdict = {'n':'\n', 'r': '\r', 't': '\t', '"': '"', '\\':'\\'}
 escchar = oneof(''.join(escdict))
 escpat = match('\\') >> escdict.get % commit(escchar)
-string = between(match('"'), reserved('"'),
+string = between(match('"'), lambda: reserved('"'),
                  lambda: ''.join % many(escpat | noneof('"')))
 
 # REPL-like function for the parsers
@@ -69,3 +78,4 @@ def interact(p):
             i = res._loc[1]
             print(line[:i] + '\033[91m' + line[i:] + '\033[0m')
         print(res.finish())
+interact(expr)

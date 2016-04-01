@@ -21,13 +21,15 @@ class Parser(Functor, Applicative, Monad):
     def apply(self, something: 'Parser') -> 'Parser':
         def run(text: List[bytes], loc: Loc):
             result = self._run(text, loc)
-            return result and something._run(text, result._loc).fmap(result._val)
+            if not result: return result
+            return something.fmap(result._val)._run(text, result._loc)
         return Parser(run)
 
     def bind(self, func: Callable[[Any], 'Parser']) -> 'Parser':
         def run(text: List[bytes], loc: Loc):
             result = self._run(text, loc)
-            return result and func(result._val)._run(text, result._loc)
+            if not result: return result
+            return func(result._val)._run(text, result._loc)
         return Parser(run)
 
     @staticmethod
@@ -40,7 +42,8 @@ class Parser(Functor, Applicative, Monad):
     def __or__(lhs, rhs):
         def run(t, l):
             res = lhs._run(t,l)
-            return res or res | rhs._run(t,l)
+            if res or res._com: return res
+            return res | rhs._run(t,l)
         return Parser(run)
 
     def __xor__(self, dsc):
@@ -145,8 +148,10 @@ def chainl1(p,op):
     def run(t,l):
         x = p()._run(t,l)
         while x:
-            o = op()._run(t,x._loc)
+            o = op._run(t,x._loc)
             if not o: break
-            x = p()._run(t,o._loc).fmap(lambda y: o._val(x._val,y))
+            y = p()._run(t,o._loc)
+            if not y: return y
+            x = Success(o._val(x._val,y._val), y._loc)
         return x
     return Parser(run)
