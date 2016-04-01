@@ -60,8 +60,8 @@ bterm  = lambda: chainl1(bfact, andop)
 bexpr  = lambda: chainl1(bterm, orop)
 def andA(a,b): return AST(a._res and b._res, '.', [a,b])
 def orA(a,b): return AST(a._res or b._res, '+', [a,b])
-andop  = infixop('&&', lambda a, b: a and b)
-orop   = infixop('||', lambda a, b: a or b)
+andop  = infixop('&&', andA)
+orop   = infixop('||', orA)
 
 # Escaping parser for string literals
 escdict = {'n':'\n', 'r': '\r', 't': '\t', '"': '"', '\\':'\\'}
@@ -78,4 +78,4 @@ def interact(p):
             i = res._loc[1]
             print(line[:i] + '\033[91m' + line[i:] + '\033[0m')
         print(res.finish())
-interact(expr)
+interact(bexpr)
