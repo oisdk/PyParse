@@ -19,7 +19,7 @@ bols = form.getfirst('bool')
 
 print('<!DOCTYPE html>\n<html lang="en"><head><title>Expressions</title></head><body>')
 print('<form action="REPL.py" method="get">')
-print('<label for="number">Aritmetic expression:</label>')
+print('<label for="number">Arithmetic expression:</label>')
 print('<input type="text" name="number" id="number" value="%s"><br>' % (escape(nums) if nums else ''))
 print('<label for="bool">Boolean expression:</label>')
 print('<input type="text" name="bool" id="bool" value="%s">' % (escape(bols) if bols else ''))
