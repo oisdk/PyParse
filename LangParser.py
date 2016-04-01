@@ -20,8 +20,7 @@ digit = oneof(string.digits) ^ 'a digit'
 numdict = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9}
 digits = some(numdict.get % digit)
 posinteger = digits.fmap(lambda d: reduce(lambda a,e: e + 10 * a, d, 0))
-def negate(p): return match('-') >> neg % p | p
-integer = negate(posinteger)
+integer = posinteger
 
 @do(Parser)
 def absfloating():
@@ -43,9 +42,12 @@ def parens(p): return between(reserved('('), lambda: reserved(')'), p )
 
 # Infix operator parser
 def infixop(x,f): return reserved(x) >> Parser.pure(f)
+def prefixop(x,f): return infixop(x,f) | Parser.pure(lambda x: x)
+notop = prefixop('!', lambda a: AST(not a._res, '¬', [a]))
+negate = prefixop('-', lambda a: AST(-a._res, '-', [a]))
 
 # Integer expression parser
-factor = lambda: token(integer.fmap(AST)) | parens(expr)()
+factor = lambda: negate.apply(token(integer.fmap(AST)) | parens(expr)())
 term   = lambda: chainl1(factor, mulop)
 expr   = lambda: chainl1(term, addop)
 def add(a,b): return AST(a._res + b._res, '+', [a,b])
@@ -55,11 +57,11 @@ addop  = infixop('+', add) | infixop('-', sub)
 mulop  = infixop('*', mul)
 
 # Boolean expression parser
-bfact  = lambda: token(boollit).fmap(AST) | parens(bexpr)()
+bfact  = lambda: notop.apply(token(boollit).fmap(AST) | parens(bexpr)())
 bterm  = lambda: chainl1(bfact, andop)
 bexpr  = lambda: chainl1(bterm, orop)
-def andA(a,b): return AST(a._res and b._res, '.', [a,b])
-def orA(a,b): return AST(a._res or b._res, '+', [a,b])
+def andA(a,b): return AST(a._res and b._res, '&', [a,b])
+def orA(a,b): return AST(a._res or b._res, '|', [a,b])
 andop  = infixop('&&', andA)
 orop   = infixop('||', orA)
 
@@ -77,5 +79,4 @@ def interact(p):
         if not res:
             i = res._loc[1]
             print(line[:i] + '\033[91m' + line[i:] + '\033[0m')
-        print(res.finish())
-interact(bexpr)
+        print(res.finish().svg())

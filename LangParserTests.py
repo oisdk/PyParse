@@ -15,7 +15,7 @@ class ParseTests(unittest.TestCase):
         for i in range(20):
             lin = ''.join(randnums(10)).lstrip()
             py = eval(lin)
-            mine = expr()(lin)
+            mine = expr()(lin)._res
             self.assertEqual(py, mine,lin)
         for line, col in [('1 + a', 4), ('2 + -d', 5), ('2 + ', 4), ('(4 + 4', 6), ('1 + (3 * -)', 10)]:
             res = expr()._run([line.encode(), None], (0,0))
@@ -39,10 +39,10 @@ class ParseTests(unittest.TestCase):
             lin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(vals, ops))
             c = {'&&':' and ', '||':' or '}
             plin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(vals, map(c.get, ops)))
-            self.assertEqual(eval(plin), bexpr()(lin), lin)
+            self.assertEqual(eval(plin), bexpr()(lin)._res, lin)
 
     def testPerf(self):
-        e, m = 6, 7
+        e, m = 7, 8
         with open('exprs', 'r') as file:
             g = list(file)
             print("\nBeginning performance test")

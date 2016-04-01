@@ -5,10 +5,10 @@ class AST:
         self._res = result
         self._opr = op
         self._chd = children
-        self._chr = op[:1] if op else str(result)[:1]
+        self._chr = op or ('T' if result == True else 'F' if result == False else str(result))
 
     def __repr__(self):
-        return str(buchheim(self))
+        return buchheim(self).svg
 
 class DrawTree:
 
@@ -23,25 +23,6 @@ class DrawTree:
         self._chg = self._sft = 0
         self._lmost_sibling = None
         self._num = number
-
-    def __repr__(self):
-        crds = list(self._coords())
-        xcrd = [x for x, _ in crds]
-        ycrd = [y for _, y in crds]
-        xmin, xmax = min(xcrd), max(xcrd)
-        ymin, ymax = min(ycrd), max(ycrd)
-        xscl = 70 / (xmax - xmin or 2)
-        yscl = 30 / (ymax - ymin or 2)
-        xfact = lambda x: 5 + int((x - xmin) * xscl)
-        yfact = lambda y: 35 - int((y - ymin) * yscl)
-        xcrd = map(xfact, xcrd)
-        ycrd = map(yfact, ycrd)
-        crds = dict(zip(zip(xcrd,ycrd), self._trees()))
-        def show(c):
-            try: return crds[c]._chr
-            except AttributeError: return '*'
-            except KeyError: return self._on_line(xfact, yfact, c)
-        return '\n'.join(''.join(show((x,y)) for x in range(80)) for y in range(40))
 
     def left(self):
         return self._thd or self._chd and self._chd[0]
@@ -74,38 +55,44 @@ class DrawTree:
         for t in self._chd:
             yield from t._trees()
 
-    def _on_line(self, xfact, yfact, crd):
-        x1 = xfact(self._loc[0])
-        y1 = yfact(self._loc[1])
+    def _pairs(self):
+        yield (self._loc, self._tre)
         for t in self._chd:
-            x2 = xfact(t._loc[0])
-            y2 = yfact(t._loc[1])
-            if is_on((x1,y1),(x2,y2),crd):
-                if x1 == x2: return '|'
-                if x1 >  x2: return '\\'
-                if x1 <  x2: return '/'
-            c = t._on_line(xfact, yfact, crd)
-            if c != ' ': return c
-        return ' '
+            yield from t._pairs()
 
-    def _svg(self):
-        xf = 30
-        yf = 100
-        o = 5
+    def _svg_t(self):
+        xf, yf, o = 100, 100, 100
         x, y = self._loc
         if self._chd:
             b = 'L%i %i' % (o + int(x*xf), o + int(y*yf))
             for t in self._chd:
-                yield from t._svg()
+                yield from t._svg_t()
                 yield b
         else:
             yield 'M%i %i' % (o + int(x*xf), o + int(y*yf))
 
+    def _svg(self):
+        xf, yf, o = 100, 100, 100
+        yield '<svg height="1000" width="1000">\n'
+        yield '<path stroke-linecap="round" d="'
+        yield from self._svg_t()
+        yield '" stroke="black" fill="none" stroke-width="3"/>\n'
+        for c, t in self._pairs():
+            x = o + int(c[0]*xf)
+            y = o + int(c[1]*yf)
+            yield '<circle cx="%i" cy="%i" r="15" stroke="black" stroke-width="2" fill="white"/>\n' % (x, y)
+            if t._chd:
+                l = '"%i,%i %i,%i %i,%i"' % (x-20,y-10,x+20,y-10,x,y-40)
+                yield '<polygon points=%s stroke="black" stroke-width="2" fill="yellow"/>\n' % l
+                r = 'T' if t._res == True else 'F' if t._res == False else str(t._res)
+                yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:12">%s</text>\n' % (x-2 if len(r) == 1 else x-6, y-15, r)
+            c = t._chr
+            yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:15">%s</text>\n' % (x-4 if len(c) == 1 else x-8, y+4, c)
+        yield "</svg>"
+
     @property
     def svg(self):
-        h = '<path stroke-linecap="round" d="'
-        t = '" stroke="black" fill="none" stroke-width="3">'
-        return h + ''.join(self._svg()) + t
+        return ''.join(self._svg())
 
 def is_on(a, b, c):
     "Return true iff point c intersects the line segment from a to b."
@@ -223,3 +210,5 @@ from random import randrange
 def sized(n):
     if n <= 2: return []
     return [sized(n // 2) for _ in range(randrange(1,n))]
+
+

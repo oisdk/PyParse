@@ -1,10 +1,7 @@
 from FunctorApplicativeMonad import Functor, Applicative, Monad
 from abc import ABCMeta, abstractmethod
 from ParseResult import *
-from typing import Callable, Any, Tuple, Optional, cast, Union, List
 from Utils import *
-
-Runner = Callable[[List[bytes], Loc], ParseResult]
 
 class Parser(Functor, Applicative, Monad):
 
@@ -12,21 +9,21 @@ class Parser(Functor, Applicative, Monad):
     this parser backtracks by default: this behaviour can be avoided with the
     `commit` combinator."""
 
-    def __init__(self, run: Runner) -> None:
+    def __init__(self, run):
         self._run = run
 
-    def fmap(self, mapper: Callable[[Any], Any]) -> 'Parser':
+    def fmap(self, mapper) -> 'Parser':
         return Parser(lambda t,l: self._run(t,l).fmap(mapper))
 
     def apply(self, something: 'Parser') -> 'Parser':
-        def run(text: List[bytes], loc: Loc):
+        def run(text, loc):
             result = self._run(text, loc)
             if not result: return result
             return something.fmap(result._val)._run(text, result._loc)
         return Parser(run)
 
-    def bind(self, func: Callable[[Any], 'Parser']) -> 'Parser':
-        def run(text: List[bytes], loc: Loc):
+    def bind(self, func) -> 'Parser':
+        def run(text, loc):
             result = self._run(text, loc)
             if not result: return result
             return func(result._val)._run(text, result._loc)
@@ -36,7 +33,7 @@ class Parser(Functor, Applicative, Monad):
     def pure(val) -> 'Parser':
         return Parser(lambda _,l: Success(val,l))
 
-    def __call__(self, string: str) -> Union[Any, str]:
+    def __call__(self, string: str):
         return self._run(string.encode().splitlines() + [None], (0,0)).finish()
 
     def __or__(lhs, rhs):
@@ -77,7 +74,7 @@ def commit(p: Parser) -> Parser:
     return Parser(run)
 
 
-def advance(loc: Loc, by: int, over: List[bytes]) -> Loc:
+def advance(loc, by, over):
     lin, col = loc[0], loc[1] + by
     cur = len(over[lin])
     while col >= cur:
@@ -86,7 +83,7 @@ def advance(loc: Loc, by: int, over: List[bytes]) -> Loc:
         if over[lin] == None: return (lin, 0)
     return (lin, col)
 
-def err(text: List[bytes], loc: Loc, dsc: Set[str], length=None) -> Failure:
+def err(text, loc, dsc, length=None):
     if text[loc[0]] == None:
         msg = 'eof'
         loc = loc[0] - 1, len(text[loc[0] - 1])

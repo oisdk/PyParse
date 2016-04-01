@@ -1,14 +1,13 @@
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Any, Generic, TypeVar
 from Utils import *
 
 class Functor(metaclass=ABCMeta):
 
     @abstractmethod
-    def fmap(self, fn: Callable[[Any], Any]) -> 'Functor':
+    def fmap(self, fn) -> 'Functor':
         return NotImplemented
 
-    def __rmod__(self, fn: Callable[[Any], Any]) -> 'Functor':
+    def __rmod__(self, fn) -> 'Functor':
         return self.fmap(fn)
 
 class Applicative(metaclass=ABCMeta):
@@ -31,12 +30,12 @@ class Applicative(metaclass=ABCMeta):
 class Monad(metaclass=ABCMeta):
 
     @abstractmethod
-    def bind(self, func: Callable[[Any], Any]) -> 'Monad':
+    def bind(self, func) -> 'Monad':
         return NotImplemented
 
     @staticmethod
     @abstractmethod
-    def pure(val: Any) -> 'Monad':
+    def pure(val) -> 'Monad':
         return NotImplemented
 
     # def __rshift__(self, something: 'Monad') -> 'Monad':

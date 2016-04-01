@@ -1,15 +1,10 @@
 from FunctorApplicativeMonad import Functor, Applicative, Monad
-from typing import Callable, Any, TypeVar, Tuple, Generic, cast, Union, Set
 from abc import ABCMeta, abstractmethod
-
-Loc = Tuple[int, int]
-A = TypeVar('A')
-B = TypeVar('B')
 
 class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
 
     @abstractmethod
-    def fmap(self, fn: Callable[[Any], Any]) -> 'ParseResult':
+    def fmap(self, fn) -> 'ParseResult':
         return NotImplemented
 
     @abstractmethod
@@ -17,15 +12,15 @@ class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
         return NotImplemented
 
     @abstractmethod
-    def bind(self, something: Callable[[Any], 'ParseResult']) -> 'ParseResult':
+    def bind(self, something) -> 'ParseResult':
         return NotImplemented
 
     @classmethod
-    def pure(cls, x: A) -> 'Success[A]':
+    def pure(cls, x) -> 'Success[A]':
         return Success(x, (0,0))
 
     @abstractmethod
-    def finish(self) -> Union[str, Any]:
+    def finish(self):
         return NotImplemented
 
     @abstractmethod
@@ -44,25 +39,25 @@ class ParseResult(Functor, Applicative, Monad, metaclass=ABCMeta):
     def _locstr(self) -> str:
         return "line %i, column %i" % (self._loc[0] + 1, self._loc[1] + 1)
 
-class Success(ParseResult, Generic[A]):
+class Success(ParseResult):
 
-    def __init__(self, value: A, loc: Loc) -> None:
+    def __init__(self, value, loc) -> None:
         self._loc, self._val = loc, value
 
-    def fmap(self, fn: Callable[[A], B]) -> 'Success[B]':
+    def fmap(self, fn):
         return Success(fn(self._val), self._loc)
 
     def apply(self, something: ParseResult) -> ParseResult:
-        return something.fmap(cast(Callable[[Any], Any], self._val))
+        return something.fmap(self._val)
 
-    def bind(self, something: Callable[[A], ParseResult]) -> ParseResult:
+    def bind(self, something):
         return something(self._val)
 
     @staticmethod
     def pure(val):
         return Success(val, (0,0))
 
-    def finish(self) -> A:
+    def finish(self):
         return self._val
 
     def __bool__(self) -> bool:
@@ -76,16 +71,16 @@ class Success(ParseResult, Generic[A]):
 
 class Failure(ParseResult):
 
-    def __init__(self, loc: Loc, exp: Set[str], rec: str, com=False) -> None:
+    def __init__(self, loc, exp, rec: str, com=False):
         self._loc, self._exp, self._rec, self._com = loc, exp, rec, com
 
-    def fmap(self, fn: Callable[[Any], Any]) -> 'Failure':
+    def fmap(self, fn) -> 'Failure':
         return self
 
     def apply(self, something: ParseResult) -> 'Failure':
         return self
 
-    def bind(self, something: Callable[[A], ParseResult]) -> 'Failure':
+    def bind(self, something):
         return self
 
     def __bool__(self) -> bool:
