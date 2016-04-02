@@ -5,7 +5,7 @@ enable()
 
 from cgi import FieldStorage, escape
 import html
-from LangParser import expr, bexpr
+from LangParser import expr, bexpr, spaces
 from Parser import eof
 
 
@@ -30,8 +30,8 @@ print('<br>')
 def show(parser, text):
     print('<code>', escape(text), '</code>')
     print('<br>')
-    res = (parser() << eof)._run([str.encode(html.unescape(text)), None], (0,0))
-    if res: print(res)
+    res = (spaces >> parser() << eof)._run([str.encode(text), None], (0,0))
+    if res: print(res._val)
     else:
         print('<code>', ''.join('^' if i == res._loc[1] else '&nbsp;' for i in range(len(text)+1)))
         print('<br>')

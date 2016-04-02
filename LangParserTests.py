@@ -7,7 +7,8 @@ from timeit import timeit
 from Utils import *
 
 def exprrun(lines):
-    for line in lines: res = expr()(line)
+    for line in lines:
+        res = bexpr()(line)
 
 class ParseTests(unittest.TestCase):
 
@@ -33,13 +34,8 @@ class ParseTests(unittest.TestCase):
 
     def testBool(self):
         for _ in range(100):
-            vallen = randrange(1,10)
-            vals = [str(bool(randrange(2))) for _ in range(vallen)]
-            ops = [choice(['&&', '||']) for _ in range(vallen - 1)]
-            lin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(vals, ops))
-            c = {'&&':' and ', '||':' or '}
-            plin = ' '.join('%s%s%s' % (n, ' ' if randrange(2) else '' , o) if o else n for n, o in zip_longest(vals, map(c.get, ops)))
-            self.assertEqual(eval(plin), bexpr()(lin)._res, lin)
+            lin = ''.join(randbools(10)).lstrip()
+            self.assertEqual(eval(lin), bexpr()(lin)._res, lin)
 
     def testPerf(self):
         e, m = 7, 8

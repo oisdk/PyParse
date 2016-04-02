@@ -12,17 +12,17 @@ class Parser(Functor, Applicative, Monad):
     def __init__(self, run):
         self._run = run
 
-    def fmap(self, mapper) -> 'Parser':
+    def fmap(self, mapper):
         return Parser(lambda t,l: self._run(t,l).fmap(mapper))
 
-    def apply(self, something: 'Parser') -> 'Parser':
+    def apply(self, something):
         def run(text, loc):
             result = self._run(text, loc)
             if not result: return result
             return something.fmap(result._val)._run(text, result._loc)
         return Parser(run)
 
-    def bind(self, func) -> 'Parser':
+    def bind(self, func):
         def run(text, loc):
             result = self._run(text, loc)
             if not result: return result
@@ -30,10 +30,10 @@ class Parser(Functor, Applicative, Monad):
         return Parser(run)
 
     @staticmethod
-    def pure(val) -> 'Parser':
+    def pure(val):
         return Parser(lambda _,l: Success(val,l))
 
-    def __call__(self, string: str):
+    def __call__(self, string):
         return self._run(string.encode().splitlines() + [None], (0,0)).finish()
 
     def __or__(lhs, rhs):
