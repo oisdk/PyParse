@@ -33,7 +33,7 @@ def show(parser, text):
     res = (parser() << eof)._run([str.encode(html.unescape(text)), None], (0,0))
     if res: print(res)
     else:
-        print('<code>', ''.join('^' if i == res._loc[1] else '&nbsp;' for i in range(len(text))))
+        print('<code>', ''.join('^' if i == res._loc[1] else '&nbsp;' for i in range(len(text)+1)))
         print('<br>')
         print('<br>'.join(str(res).split('\n')))
         print('</code>')

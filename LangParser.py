@@ -26,7 +26,7 @@ integer = posinteger
 def absfloating():
     befor = yield posinteger
     after = yield (match('.') >> commit(digits)) | Parser.pure([])
-    mant = reduce(lambda a,e: (e+a)/10, reversed(after)(), 0)
+    mant = reduce(lambda a,e: (e+a)/10, reversed(after), 0)
     return befor + mant
 floating = lambda: negate(absfloating())
 
@@ -47,7 +47,7 @@ notop = prefixop('not', lambda a: AST(not a._res, '!', [a]))
 negate = prefixop('-', lambda a: AST(-a._res, '-', [a]))
 
 # Integer expression parser
-factor = lambda: negate.apply(token(integer.fmap(AST)) | parens(expr)())
+factor = lambda: negate.apply(token(absfloating().fmap(AST)) | parens(expr)())
 term   = lambda: chainl1(factor, mulop)
 expr   = lambda: chainl1(term, addop)
 def add(a,b): return AST(a._res + b._res, '+', [a,b])
