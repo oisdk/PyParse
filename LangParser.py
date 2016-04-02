@@ -43,7 +43,7 @@ def parens(p): return between(reserved('('), lambda: reserved(')'), p )
 # Infix operator parser
 def infixop(x,f): return reserved(x) >> Parser.pure(f)
 def prefixop(x,f): return infixop(x,f) | Parser.pure(lambda x: x)
-notop = prefixop('!', lambda a: AST(not a._res, '¬', [a]))
+notop = prefixop('not', lambda a: AST(not a._res, '!', [a]))
 negate = prefixop('-', lambda a: AST(-a._res, '-', [a]))
 
 # Integer expression parser
@@ -62,8 +62,8 @@ bterm  = lambda: chainl1(bfact, andop)
 bexpr  = lambda: chainl1(bterm, orop)
 def andA(a,b): return AST(a._res and b._res, '&', [a,b])
 def orA(a,b): return AST(a._res or b._res, '|', [a,b])
-andop  = infixop('&&', andA)
-orop   = infixop('||', orA)
+andop  = infixop('and', andA)
+orop   = infixop('or', orA)
 
 # Escaping parser for string literals
 escdict = {'n':'\n', 'r': '\r', 't': '\t', '"': '"', '\\':'\\'}

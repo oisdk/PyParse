@@ -85,9 +85,9 @@ class DrawTree:
                 l = '"%i,%i %i,%i %i,%i"' % (x-20,y-10,x+20,y-10,x,y-40)
                 yield '<polygon points=%s stroke="black" stroke-width="2" fill="yellow"/>\n' % l
                 r = 'T' if t._res == True else 'F' if t._res == False else str(t._res)
-                yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:12">%s</text>\n' % (x-2 if len(r) == 1 else x-6, y-15, r)
+                yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:12">%s</text>' % (x-2 if len(r) == 1 else x-6, y-15, r)
             c = t._chr
-            yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:15">%s</text>\n' % (x-4 if len(c) == 1 else x-8, y+4, c)
+            yield '<text x="%i" y="%i" style="font-family: helvetica; font-size:15">%s</text>' % (x-4 if len(c) == 1 else x-8, y+4, c)
         yield "</svg>"
 
     @property
